@@ -9,7 +9,7 @@ from scipy.stats import linregress
 from scipy.signal import argrelextrema
 from datetime import datetime
 
-# --- AYARLAR ---
+
 LOOKBACK_PERIOD = 250    
 PIVOT_WINDOW = 5        
 VOLUME_MULTIPLIER = 1.5  
@@ -17,7 +17,7 @@ RISK_REWARD_1 = 1.5
 RISK_REWARD_2 = 2.5      
 SAVE_FOLDER = "Sinyal_Grafikleri" 
 
-# Klasör yoksa oluştur
+
 if not os.path.exists(SAVE_FOLDER):
     os.makedirs(SAVE_FOLDER)
 
