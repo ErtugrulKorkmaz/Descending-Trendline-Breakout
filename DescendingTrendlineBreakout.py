@@ -10,12 +10,12 @@ from scipy.signal import argrelextrema
 from datetime import datetime
 
 # --- AYARLAR ---
-LOOKBACK_PERIOD = 250    # Analiz edilecek gün sayısı
-PIVOT_WINDOW = 5         # Tepe tespiti hassasiyeti (Sağ/Sol mum sayısı)
-VOLUME_MULTIPLIER = 1.5  # Hacim ortalamanın kaç katı olmalı?
-RISK_REWARD_1 = 1.5      # Hedef 1 oranı
-RISK_REWARD_2 = 2.5      # Hedef 2 oranı
-SAVE_FOLDER = "Sinyal_Grafikleri" # Grafiklerin kaydedileceği klasör
+LOOKBACK_PERIOD = 250    
+PIVOT_WINDOW = 5        
+VOLUME_MULTIPLIER = 1.5  
+RISK_REWARD_1 = 1.5      
+RISK_REWARD_2 = 2.5      
+SAVE_FOLDER = "Sinyal_Grafikleri" 
 
 # Klasör yoksa oluştur
 if not os.path.exists(SAVE_FOLDER):
@@ -29,15 +29,12 @@ def plot_signal(df, symbol, slope, intercept, pivots_idx):
     Sinyal gelen hissenin grafiğini ve trend çizgisini çizer/kaydeder.
     """
     try:
-        # Son 6 aylık veriyi görselleştirme için al
         lookback_plot = 150
         if len(df) > lookback_plot:
             plot_df = df.iloc[-lookback_plot:]
         else:
             plot_df = df
 
-        # Trend çizgisi koordinatlarını hesapla (y = mx + b)
-        # Regresyon tüm veri seti üzerinden hesaplandığı için global indeksleri kullanmalıyız
         first_pivot_global_idx = df.index.get_loc(pivots_idx[0])
         last_global_idx = len(df) - 1
         
@@ -47,10 +44,10 @@ def plot_signal(df, symbol, slope, intercept, pivots_idx):
         date_start = df.index[first_pivot_global_idx]
         date_end = df.index[last_global_idx]
         
-        # Çizgi verisi (Tarih, Fiyat) formatında
+
         trend_line = [(date_start, price_start), (date_end, price_end)]
 
-        # Görsel Ayarlar
+
         mc = mpf.make_marketcolors(up='green', down='red', edge='i', wick='i', volume='in', inherit=True)
         s = mpf.make_mpf_style(marketcolors=mc, gridstyle=':', y_on_right=True)
         
@@ -79,17 +76,16 @@ def analyze_stock(symbol):
         if isinstance(df.columns, pd.MultiIndex):
             df.columns = df.columns.get_level_values(0)
 
-        # İndikatörler
+
         df['ATR'] = talib.ATR(df['High'], df['Low'], df['Close'], timeperiod=14)
         df['Vol_SMA'] = df['Volume'].rolling(window=20).mean()
         
-        # Pivot Tespiti (ZigZag Benzeri)
+
         df['is_pivot'] = df.iloc[argrelextrema(df['High'].values, np.greater_equal, order=PIVOT_WINDOW)[0]]['High']
         pivots = df[df['is_pivot'].notna()]
         
         if len(pivots) < 3: return None
-        
-        # Trend Hesabı (Son anlamlı tepeler)
+
         last_pivots = pivots.iloc[-3:-1]
         if len(last_pivots) < 2: return None
 
@@ -98,10 +94,9 @@ def analyze_stock(symbol):
         
         slope, intercept, _, _, _ = linregress(x_pivots, y_pivots)
         
-        # Sadece DÜŞEN trendleri al (Eğim negatif olmalı)
+
         if slope >= -0.02: return None 
 
-        # Kırılım Kontrolü
         current_idx = len(df) - 1
         trendline_val = slope * current_idx + intercept
         
@@ -113,22 +108,19 @@ def analyze_stock(symbol):
         breakout = (prev_close < trendline_val) and (current_close > trendline_val)
         vol_check = current_vol > (avg_vol * VOLUME_MULTIPLIER)
         
-        # Mum Teyidi
         engulfing = talib.CDLENGULFING(df['Open'], df['High'], df['Low'], df['Close'])
         marubozu = talib.CDLMARUBOZU(df['Open'], df['High'], df['Low'], df['Close'])
         candle_signal = (engulfing.iloc[-1] != 0) or (marubozu.iloc[-1] != 0)
 
         if breakout and vol_check:
-            # Sinyal Bulundu -> Grafik Çiz
             plot_signal(df, symbol, slope, intercept, last_pivots.index)
             
-            # Risk Yönetimi
             atr = df['ATR'].iloc[-1]
             stop_loss = df['Low'].iloc[-1] - (atr * 0.2)
             entry_price = current_close
             risk = entry_price - stop_loss
             
-            # Minimum Stop Mesafesi Kontrolü
+
             if risk < atr * 0.5:
                 stop_loss = entry_price - (atr * 1.5)
                 risk = entry_price - stop_loss
@@ -168,7 +160,6 @@ def run_scanner():
     
     if results:
         df_res = pd.DataFrame(results)
-        # Tablo formatlama
         pd.set_option('display.max_columns', None)
         pd.set_option('display.width', 1000)
         print(df_res[['Sembol', 'Fiyat', 'Stop', 'TP1', 'TP2', 'Hacim_Kat', 'Mum_Teyidi']])
